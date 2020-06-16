@@ -1,40 +1,40 @@
 #**Git Repository server installation and configuration**#
 
 **Drive mounting with LVM**
-```pvcreate /dev/mapper/mpathb
+pvcreate /dev/mapper/mpathb
 vgcreate GitRepoSourceCode /dev/mapper/mpathb
 lvcreate -L +1000G -n GitRepoSourceCode-Data GitRepoSourceCode
 mkfs.xfs /dev/GitRepoSource/GitRepoSource-Data
-mkdir /GitRepo```
+mkdir /GitRepo
 
-```vim /etc/fstab
-/dev/GitRepoSource/GitRepoSource-Data       /GitRepo        xfs     defaults  0 0```
+vim /etc/fstab
+/dev/GitRepoSource/GitRepoSource-Data       /GitRepo        xfs     defaults  0 0
 
 #**Installation and configuration**#
 >1) Install httpd, mod_ssl, and git
-	`yum install httpd mod_ssl git`
+	yum install httpd mod_ssl git
 
 >2) Choose an arbitrary location for git repo
-	`mkdir -p /GitRepo/SourceCode`
+	mkdir -p /GitRepo/SourceCode
 
 >3) Set SELinux context appropriately
-	`semanage fcontext -a -t git_rw_content_t "/GitRepo/SourceCode(/.*)?"`
-	`restorecon -R /GitRepo/SourceCode`
+	semanage fcontext -a -t git_rw_content_t "/GitRepo/SourceCode(/.*)?"
+	restorecon -R /GitRepo/SourceCode
 
 >4) Ensure that Apache httpd's user or group can write to destination directories
-	`chmod -R 2775 /GitRepo/SourceCode`
-	`chgrp -R apache /GitRepo/SourceCode`
-	`setfacl -R -m d:g::rwX /GitRepo/SourceCode`
+	chmod -R 2775 /GitRepo/SourceCode
+	chgrp -R apache /GitRepo/SourceCode
+	setfacl -R -m d:g::rwX /GitRepo/SourceCode
 
 >5) Initialize a bare git repo(For Repo1, Repo2)
-	`git init --bare /GitRepo/SourceCode/Repo1`
-	`git init --bare /GitRepo/SourceCode/Repo2`
+	git init --bare /GitRepo/SourceCode/Repo1
+	git init --bare /GitRepo/SourceCode/Repo2
 
 >6)Create a new httpd config file called /etc/httpd/conf.d/git-srv.include
 >Include the following content:
 
-`vim /etc/httpd/conf.d/git-srv.include`
-```RewriteEngine On
+vim /etc/httpd/conf.d/git-srv.include
+RewriteEngine On
 RewriteCond %{QUERY_STRING} service=git-receive-pack [OR]
 RewriteCond %{REQUEST_URI} /git-receive-pack$
 RewriteRule ^/SourceCode/ - [E=AUTHREQUIRED:yes]
@@ -62,35 +62,35 @@ ScriptAlias /SourceCode/Repo2 /usr/libexec/git-core/git-http-backend/
     Order deny,allow
     Deny from env=AUTHREQUIRED
     Satisfy any
-</LocationMatch>```
+</LocationMatch>
 
 >7) Create http-only users that are allowed access
-	```touch /etc/httpd/.authusers-Repo1
+	touch /etc/httpd/.authusers-Repo1
 	touch /etc/httpd/.authusers-Repo2
 	chgrp apache /etc/httpd/.authusers-Repo1
 	chgrp apache /etc/httpd/.authusers-Repo2
 	chmod 640 /etc/httpd/.authusers-Repo1
 	chmod 640 /etc/httpd/.authusers-Repo2
 	htpasswd -c /etc/httpd/.authusers-Repo1 administrator
-	htpasswd -c /etc/httpd/.authusers-Repo2 administrator```
+	htpasswd -c /etc/httpd/.authusers-Repo2 administrator
 	
 	>Note: To add another user or change password to Repo1
-		  `htpasswd  /etc/httpd/.authusers-Repo1 Username`
+		  htpasswd  /etc/httpd/.authusers-Repo1 Username
 
 >8) Create a new httpd config file called /etc/httpd/conf.d/git-srv.conf
-```vim /etc/httpd/conf.d/git-srv.conf
+vim /etc/httpd/conf.d/git-srv.conf
 
 <VirtualHost *:80>
     ServerName mytestsite.com
     Include conf.d/git-srv.include
-</VirtualHost>```
+</VirtualHost>
 
 
 >9) Ensure the firewall allows in http traffic
-	```firewall-cmd --add-port=80/tcp --permanent
-	firewall-cmd --reload```
+	firewall-cmd --add-port=80/tcp --permanent
+	firewall-cmd --reload
 
 >10) Start or restart httpd.service
-	`systemctl restart httpd`
+	systemctl restart httpd
 
 
